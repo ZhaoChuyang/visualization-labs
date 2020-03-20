@@ -1,5 +1,5 @@
 # visualization_labs
-Source code and lab reports for visualization (2020 Spring)
+Source code and lab reports for visualization (2020 Spring)  
 All implemented using [d3.js](d3js.org)
 
 ## lab 1
