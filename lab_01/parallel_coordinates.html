@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Parallel Coordinates</title>
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+</head>
+<body>
+
+<style>
+    svg {
+        font: 10px sans-serif;
+    }
+
+    .background path {
+        fill: none;
+        stroke: #ddd;
+        shape-rendering: crispEdges;
+    }
+
+    .foreground path {
+        fill: none;
+        stroke: steelblue;
+    }
+
+    .brush .extent {
+        fill-opacity: .3;
+        stroke: #fff;
+        shape-rendering: crispEdges;
+    }
+
+    .axis line,
+
+    .axis path {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .axis text {
+        text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        cursor: move;
+    }
+
+</style>
+
+<div id="parallel_coordinates"></div>
+
+<script>
+
+    function getRandomSubarray(arr, size) {
+        var shuffled = arr.slice(0), i = arr.length, temp, index;
+        while (i--) {
+            index = Math.floor((i + 1) * Math.random());
+            temp = shuffled[index];
+            shuffled[index] = shuffled[i];
+            shuffled[i] = temp;
+        }
+        return shuffled.slice(0, size);
+    }
+
+    function normalize_data(data, attr, new_attr){
+        var max_val = -1_000_000;
+        var min_val = 1_000_000;
+
+        for(var i = 0; i < data.length; i++){
+            var temp = parseFloat(data[i][attr]);
+            if(temp > max_val) max_val = temp;
+            if(temp < min_val) min_val = temp;
+        }
+
+        for(var i = 0; i < data.length; i++){
+            var normalized = (parseFloat(data[i][attr]) - min_val) / (max_val - min_val);
+            data[i][new_attr] = normalized;
+        }
+
+        return data;
+    }
+
+
+    // set the dimensions and margins of the graph
+    var margin = {top: 10, right: 30, bottom: 30, left: 60},
+        width = 460 * 2.5 - margin.left - margin.right,
+        height = 400 * 1.5 - margin.top - margin.bottom;
+
+    var parallel_coordinates = d3.select("#parallel_coordinates").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+    d3.csv("./data/jena_climate_2009_2016.csv", function(data){
+
+        data = getRandomSubarray(data, 500);
+
+        // Extract the list of dimensions and create a scale for each.
+        console.log(d3.keys(data[0]));
+
+
+        var parser = d3.timeParse("%d.%m.%Y %H:%M:%S");
+
+        var start = parser("01.01.2008 00:00:00");
+        var end = parser("12.31.2016 00:00:00");
+
+
+        dimensions = d3.keys(data[0]).filter(function(d) {
+            var features = ["Date Time", "p (mbar)", "T (degC)", "sh (g/kg)"];
+            if(features.includes(d)) return d;
+        });
+
+        // For each dimension, I build a linear scale. I store all in a y object
+        var y = {};
+        for (i in dimensions) {
+            var name = dimensions[i];
+            if(name != "Date Time"){
+                y[name] = d3.scaleLinear()
+                    .domain( d3.extent(data, function(d) { return +d[name]; }) )
+                    .range([height, 0])
+            }
+            else{
+                y[name] = d3.scaleTime().domain([start, end]).range([height, 0]);
+            }
+
+        }
+
+        // Build the X scale -> it find the best position for each Y axis
+        x = d3.scalePoint()
+            .range([0, width])
+            .padding(1)
+            .domain(dimensions);
+
+        // The path function take a row of the csv as input, and return x and y coordinates of the line to draw for this raw.
+        function path(d) {
+            return d3.line()(dimensions.map(function(p) {
+                if(p == 'Date Time'){
+                    return [x(p), y[p](parser(d[p]))];
+                }
+                return [x(p), y[p](d[p])];
+            }));
+        }
+
+        // Draw the axis:
+        parallel_coordinates.selectAll("myAxis")
+        // For each dimension of the dataset I add a 'g' element:
+            .data(dimensions).enter()
+            .append("g")
+            // I translate this element to its right position on the x axis
+            .attr("transform", function(d) {
+                console.log(x(d));
+                return "translate(" + x(d) + "," + 9 + ")";
+            })
+            // And I build the axis with the call function
+            .each(function(d) { d3.select(this).call(d3.axisLeft().scale(y[d])); })
+            // Add axis title
+            .append("text")
+            .style("text-anchor", "middle")
+            .attr("y", -9)
+            .text(function(d) { return d; })
+            .style("fill", "black");
+
+        // Draw the lines
+        parallel_coordinates.selectAll("myPath")
+            .data(data)
+            .enter().append("path")
+            .attr("d",  path)
+            .style("fill", "none")
+            .style("stroke", "#69b3a2")
+            .style("opacity", 0.5)
+
+    });
+
+
+</script>
+
+</body>
+</html>

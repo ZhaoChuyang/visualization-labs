@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualization for coivd-19</title>
+
+    <!--d3 library-->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+    <!--bootstrap and jquery library-->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+
+</head>
+
+<style>
+
+    body { font: 12px Arial;}
+
+    path {
+        stroke: steelblue;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: grey;
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+
+</style>
+
+<body>
+
+<div class="row">
+    <div class="col-md-6" id="histogram"></div>
+</div>
+<div class="row">
+    <div class="col-md-6" id="boxplot"></div>
+</div>
+
+
+<script>
+
+    // define margin, height, width for charts
+    var margin = {top: 30, left: 60, bottom: 80, right: 30},
+        width = 460 * 1.5 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+    var histogram = d3.select("#histogram").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var boxplot = d3.select("#boxplot").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    /***** Functions for Processing Data *****/
+
+    function group_by_time(data){
+
+        let country = 'Mainland China';
+        var processed = [];
+
+        // keep all cases in China
+        processed = data.filter(row => row['Country/Region'] === country);
+
+        // group data by time
+        processed = d3.nest()
+            .key(function(d){ return d['ObservationDate']; })
+            .rollup(function(v){ return {
+                sum_confirmed: d3.sum(v, function(d){ return d['Confirmed']; }),
+                sum_deaths: d3.sum(v, function(d){ return d['Deaths']; }),
+                sum_recovered: d3.sum(v, function(d){ return d['Recovered']; }),
+            }; })
+            .entries(processed);
+
+        for(i = 0; i < processed.length; i++){
+            processed[i].sum_confirmed = processed[i]['value']['sum_confirmed'];
+            processed[i].sum_deaths = processed[i]['value']['sum_deaths'];
+            processed[i].sum_recovered = processed[i]['value']['sum_recovered'];
+            processed[i].sum_all = processed[i]['value']['sum_confirmed'] + processed[i]['value']['sum_deaths'] + processed[i]['value']['sum_recovered'];
+        }
+
+
+        delete processed.value;
+
+        return processed;
+
+    }
+
+    /***** End Functions *****/
+
+    /***** histogram *****/
+    d3.csv("./data/covid_19_data.csv", function(data){
+
+        data = data.slice(0, 4000);
+
+        var keys = ["sum_confirmed", "sum_deaths", "sum_recovered"];
+
+        // console.log(data.columns.slice(2));
+
+        // date parser
+        parser = d3.timeParse("%m/%d/%Y");
+
+        // parse date in dataset
+        // for(var i = 0; i < data.length; i++){
+        //     data[i]['date'] = parser(data[i]['ObservationDate']);
+        // }
+
+        // let start_date = data[0]['date'];
+        // let end_date = data[data.length - 1]['date'];
+
+        // console.log(start_date, end_date);
+
+        var time_country_data = group_by_time(data);
+
+        // add x axis
+        // var x = d3.scaleTime().range([0, width]);
+        // x.domain([start_date, end_date]);
+
+        // set x scale
+        var x = d3.scaleBand()
+            .range([0, width])
+            .paddingInner(0.05)
+            .align(0.1);
+
+        // histogram.append("g")
+        //     .attr("transform", "translate(0," + height + ")")
+        //     .call(d3.axisBottom(x)
+        //         .tickFormat(d3.timeFormat("%m-%d")))
+        //     .selectAll("text")
+        //     .style("text-anchor", "end")
+        //     .attr("dx", "-.8em")
+        //     .attr("dy", ".15em")
+        //     .attr("transform", "rotate(-65)");
+
+        // add y axis
+        var y = d3.scaleLinear()
+            .range([height, 0]);
+
+        // add z axis (colors for different subtypes)
+        var z = d3.scaleOrdinal()
+            .range(["#7f78d2", "#481380", "#ffe2ff"]);
+
+        // console.log(time_country_data.map(d => parser(d.key)));
+        // console.log(time_country_data);
+
+        x.domain(time_country_data.map(d => parser(d.key)));
+
+        y.domain([0, d3.max(time_country_data, d => d.sum_all) * 1.5]);
+
+        z.domain(keys);
+
+        histogram.append("g").attr("transform", `translate(0, ${height})`)
+            .attr("class", "x axis")
+            .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%m-%d")))
+            .selectAll("text")
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em")
+            .attr("transform", "rotate(-65)");
+
+        histogram.append("g").attr("class", "y axis").call(d3.axisLeft(y));
+
+        // Legends
+        var legend = histogram.append("g")
+            .attr("font-family", "sans-serif")
+            .attr("font-size", 10)
+            .attr("text-anchor", "end")
+            .selectAll("g")
+            .data(keys.slice().reverse())
+            .enter().append("g")
+            .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+        legend.append("rect")
+            .attr("x", width - 19)
+            .attr("width", 19)
+            .attr("height", 19)
+            .attr("fill", z);
+
+        legend.append("text")
+            .attr("x", width - 24)
+            .attr("y", 9.5)
+            .attr("dy", "0.32em")
+            .text(function(d) { return d; });
+
+        var stacked_data = d3.stack().keys(keys)(time_country_data);
+
+        // console.log(d3.stack().keys(keys)(time_country_data));
+        // console.log(y(0), y(height));
+
+        histogram.append("g")
+            .selectAll("g")
+            .data(stacked_data)
+            .enter().append("g")
+            .attr("fill", function(d){
+                // console.log(z(d.key));
+                return z(d.key);
+            })
+            .selectAll("rect")
+            .data(function(d){
+                // console.log(d);
+                return d;
+            })
+            .enter().append("rect")
+            .attr("x", function(d){
+                // console.log(d);
+                return x(parser(d.data.key))
+            })
+            .attr("y", d => y(d[1]))
+            .attr("height", d => y(d[0]) - y(d[1]))
+            .attr("width", x.bandwidth());
+
+        // var stacked_time_country_data = d3.stack().keys(subgroups)(time_country_data);
+        // console.log(stacked_time_country_data[0]);
+
+        // show bars
+        // histogram.append("g")
+        //     .selectAll("g")
+        //     // Enter in the stack data = loop key per key = group per group
+        //     .data(stacked_time_country_data)
+        //     .enter().append("g")
+        //     .attr("fill", function(d) { return color_map(d.key); })
+        //     .selectAll("rect")
+        //     // enter a second time = loop subgroup per subgroup to add all rectangles
+        //     .data(function(d) { return d; })
+        //     .enter().append("rect")
+        //     .attr("x", function(d) { return x(d.data.group); })
+        //     .attr("y", function(d) { return y(d[1]); })
+        //     .attr("height", function(d) { return y(d[0]) - y(d[1]); })
+        //     .attr("width",x.bandwidth())
+
+
+
+    });
+
+    /***** boxplot *****/
+
+    function get_box_quartiles(d) {
+        return [
+            d3.quantile(d, .25),
+            d3.quantile(d, .5),
+            d3.quantile(d, .75)
+        ];
+    }
+
+    d3.csv("./data/covid_19_data.csv", function(data){
+
+        // keep all data in China
+        data = data.filter(d => d["Country/Region"] === "Mainland China");
+
+        // group by province and date
+        data = d3.nest()
+            .key(d => d["Province/State"])
+            .key(d => d["ObservationDate"])
+            .rollup(function(v){
+                return {
+                    sum_confirmed: d3.sum(v, d => d["Confirmed"]),
+                    sum_deaths: d3.sum(v, d => d["Deaths"]),
+                    sum_recovered: d3.sum(v, d => d["Recovered"])
+                }
+            })
+            .entries(data);
+
+        console.log(data);
+
+        // create columns for confirmed, deaths, recovered
+
+        let keys = [];
+
+        for(var i=0; i<data.length; i++){
+            keys.push(data[i].key);
+        }
+        console.log(keys);
+
+        var group_data = [];
+
+        // get all data
+        for(i = 0; i < data.length; i++){
+            let key  = data[i].key;
+            group_data[key] = [];
+            for(var j=0; j < data[i].values.length; j++){
+                group_data[key].push(data[i].values[j].value['sum_confirmed'])
+            }
+            group_data[key].sort((a,b) => a-b);
+        }
+
+        // console.log(group_data);
+        // return;
+
+        // calculate new cases everyday and sort arrays
+        for(i = 0; i < keys.length; i++){
+            let key = keys[i];
+            var temp = [group_data[key][0]];
+            for(j=1; j < group_data[key].length; j++){
+                temp.push(group_data[key][j] - group_data[key][j-1]);
+            }
+            group_data[key] = temp;
+            group_data[key].sort((a,b) => a-b);
+        }
+
+        // color map for box plot
+        var basic_colors = Object.values(d3.schemePastel1);
+        var color_range = (((basic_colors.concat(basic_colors)).concat(basic_colors)).concat(basic_colors));
+        var color_map = d3.scaleOrdinal().range(color_range).domain(keys);
+
+        var box_plot_data = [];
+
+        // prepare data for box plot
+        for(i = 0; i < keys.length; i++){
+            var record = {};
+            let key = keys[i];
+            let local_min = d3.min(group_data[key]);
+            let local_max = d3.max(group_data[key]);
+
+            record["key"] = key;
+            record["min"] = local_min;
+            record["max"] = local_max;
+            record["quartile"] = get_box_quartiles(group_data[key]);
+            record["whiskers"] = [local_min, local_max];
+            record["color"] = color_map(key);
+
+            box_plot_data.push(record);
+        }
+
+        console.log(box_plot_data);
+
+        // define axises
+        var x = d3.scaleBand().range([0, width]).paddingInner(0.5).align(0.1);
+
+        var y = d3.scaleLinear().range([height, 0]);
+
+        x.domain(keys);
+        console.log(keys);
+
+        y.domain([0, 20000]);
+
+        boxplot.append("g").attr("transform", `translate(0, ${height})`)
+            .attr("class", "x axis")
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em")
+            .attr("transform", "rotate(-65)");
+
+        boxplot.append("g").attr("class", "y axis").call(d3.axisLeft(y));
+
+        g = boxplot.append("g");
+        g.selectAll(".verticalLines")
+            .data(box_plot_data)
+            .enter()
+            .append("line")
+            .attr("x1", function(d){
+                console.log(`x1: ${x(d['key']) + x.bandwidth()/2}`);
+                return x(d['key']) + x.bandwidth()/2;
+            })
+            .attr("y1", function(d){
+                console.log(`y1: ${d["min"]}`);
+                return y(d["min"]);
+            })
+            .attr("x2", d => x(d['key']) + x.bandwidth()/2)
+            .attr("y2", d => y(d["max"]))
+            .attr("stroke", "#000")
+            .attr("stroke-width", 1)
+            .attr("fill", "none");
+
+        g.selectAll("rect")
+            .data(box_plot_data)
+            .enter()
+            .append("rect")
+            .attr("width", x.bandwidth())
+            .attr("height", function(datum) {
+                    var quartiles = datum.quartile;
+                    var height = y(quartiles[0]) - y(quartiles[2]);
+                    console.log(height);
+                    return height;
+                }
+            )
+            .attr("x", function(datum) {
+                    return x(datum.key);
+                }
+            )
+            .attr("y", function(datum) {
+                console.log(datum.quartile[2]);
+                    return y(datum.quartile[2]);
+                }
+            )
+            .attr("fill", function(d) {
+                    console.log(d.key);
+                    console.log(color_map(d.key));
+                    return color_map(d.key);
+                }
+            )
+            .attr("stroke", "#000")
+            .attr("stroke-width", 1);
+
+
+        var horizontalLineConfigs = [
+            // Top whisker
+            {
+                x1: function(datum) { return x(datum.key) },
+                y1: function(datum) { return y(datum.whiskers[0]) },
+                x2: function(datum) { return x(datum.key) + x.bandwidth() },
+                y2: function(datum) { return y(datum.whiskers[0]) }
+            },
+            // Median line
+            {
+                x1: function(datum) { return x(datum.key) },
+                y1: function(datum) { return y(datum.quartile[1]) },
+                x2: function(datum) { return x(datum.key) + x.bandwidth() },
+                y2: function(datum) { return y(datum.quartile[1]) }
+            },
+            // Bottom whisker
+            {
+                x1: function(datum) { return x(datum.key) },
+                y1: function(datum) { return y(datum.whiskers[1]) },
+                x2: function(datum) { return x(datum.key) + x.bandwidth() },
+                y2: function(datum) { return y(datum.whiskers[1]) }
+            }
+        ];
+
+        for(var i=0; i < horizontalLineConfigs.length; i++) {
+            var lineConfig = horizontalLineConfigs[i];
+
+            var horizontalLine = g.selectAll(".whiskers")
+                .data(box_plot_data)
+                .enter()
+                .append("line")
+                .attr("x1", lineConfig.x1)
+                .attr("y1", lineConfig.y1)
+                .attr("x2", lineConfig.x2)
+                .attr("y2", lineConfig.y2)
+                .attr("stroke", "#000")
+                .attr("stroke-width", 1)
+                .attr("fill", "none");
+        }
+
+    });
+
+
+</script>
+
+</body>
+</html>

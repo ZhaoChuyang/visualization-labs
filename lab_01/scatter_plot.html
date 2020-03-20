@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scatter Plot</title>
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+
+
+</head>
+<body>
+<style>
+    svg {
+        font: 10px sans-serif;
+    }
+
+    .background path {
+        fill: none;
+        stroke: #ddd;
+        shape-rendering: crispEdges;
+    }
+
+    .foreground path {
+        fill: none;
+        stroke: steelblue;
+    }
+
+    .brush .extent {
+        fill-opacity: .3;
+        stroke: #fff;
+        shape-rendering: crispEdges;
+    }
+
+    .axis line,
+    .axis path {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .axis text {
+        text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        cursor: move;
+    }
+</style>
+
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+
+<script>
+
+    // 获取指定大小的随机子集
+    function getRandomSubarray(arr, size) {
+        var shuffled = arr.slice(0), i = arr.length, temp, index;
+        while (i--) {
+            index = Math.floor((i + 1) * Math.random());
+            temp = shuffled[index];
+            shuffled[index] = shuffled[i];
+            shuffled[i] = temp;
+        }
+        return shuffled.slice(0, size);
+    }
+
+    // 正则化数据
+    function normalize_data(data, attr, new_attr){
+        var max_val = -1_000_000;
+        var min_val = 1_000_000;
+
+        for(var i = 0; i < data.length; i++){
+            var temp = parseFloat(data[i][attr]);
+            if(temp > max_val) max_val = temp;
+            if(temp < min_val) min_val = temp;
+        }
+
+        for(var i = 0; i < data.length; i++){
+            var normalized = (parseFloat(data[i][attr]) - min_val) / (max_val - min_val);
+            data[i][new_attr] = normalized;
+        }
+
+        return data;
+    }
+
+
+    // set the dimensions and margins of the graph
+    var margin = {top: 10, right: 30, bottom: 30, left: 60},
+        width = 460 * 1.5 - margin.left - margin.right,
+        height = 400 * 1.5 - margin.top - margin.bottom;
+
+    var svg = d3.select("#my_dataviz").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    d3.csv("./data/jena_climate_2009_2016.csv", function (data) {
+
+        data = getRandomSubarray(data, 5000);
+
+        console.log(data);
+
+        var parser = d3.timeParse("%d.%m.%Y %H:%M:%S");
+
+        data = normalize_data(data, 'T (degC)', 'norm_T');
+
+        data = normalize_data(data, 'sh (g/kg)', 'norm_sh');
+
+        var start = parser("01.01.2008 00:00:00");
+        var end = parser("12.31.2016 00:00:00");
+
+        // Add X axis
+        var x = d3.scaleTime().domain([start, end]).range([0, width]);
+        svg.append("g").attr("transform", "translate(0," + height + ")").call(d3.axisBottom(x));
+
+        // Add Y axis
+        var y = d3.scaleLinear().domain([940, 1030]).range([height, 0]);
+        svg.append("g").call(d3.axisLeft(y));
+
+        // Add dots
+        svg.append("g").selectAll("dot").data(data).enter().append("circle")
+            .attr("cx", function(d){
+                // console.log(x(parser(d['Date Time'])));
+                return x(parser(d['Date Time']));
+            })
+            .attr("cy", function(d){
+                // console.log(y(d['p (mbar)']));
+                return y(d['p (mbar)']);
+            })
+            .attr("r", function(d){
+
+                return d['norm_T'] * 5;
+            })
+            .style("fill", function(d){
+                return d3.interpolateBlues(d['norm_sh']);
+            })
+
+    });
+
+</script>
+
+</body>
+</html>
