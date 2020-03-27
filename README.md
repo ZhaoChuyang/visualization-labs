@@ -1,11 +1,9 @@
 # Visualization Labs
-<<<<<<< HEAD
+
 Source code and lab reports for visualization (Spring 2020)
+
 All implemented using [d3.js](https://d3js.org/) and [Vega](https://vega.github.io/vega/)
-=======
-Source code and lab reports for visualization (2020 Spring)  
-All implemented using [d3.js](https://d3js.org)
->>>>>>> 9cd7f9e91074aeef48912c01840158b799fa3808
+
 
 ## Lab 1
 Scatter plot and parallel coordinates of jena climate.
