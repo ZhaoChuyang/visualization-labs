@@ -51,7 +51,7 @@ Monthly Hours of Sunshine in Major U.S. Cities. It can be obtained from [here](h
 
 ### Visualization
 
-![](images/Visualization for Hours of Sunshine.pdf)
+![](images/Visualization_for_Hours_of_Sunshine.pdf)
 
 以上图像均使用 D3 与 Vega 实现，使用 D3 处理数据，Vega 对处理后的数据作图，具体实现见 [visualize.html](visualize.html)
 
