@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualization for Hours of Sunshine</title>
+
+    <!--bootstrap and jquery library-->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+    <!--vega and vega-lite library-->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.10.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@4.8.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.5.1"></script>
+
+    <!--d3.js library-->
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+
+</head>
+<body>
+
+<div class="row mt-3">
+    <div class="row border-bottom">
+        <div class="row ml-5">
+            <h3 class="">Sunshine hours variation across months</h3>
+        </div>
+        <div class="row ml-3 mt-3 mb-3">
+            <div class="col-6"  id="bar-chart-1"></div>
+            <div class="col-6" id="bar-chart-2"></div>
+        </div>
+    </div>
+    <div class="row mt-3 border-bottom">
+        <div class="row ml-5">
+            <h3 class="">Sunshine hours variation across longitude and latitude</h3>
+        </div>
+        <div class="row ml-3 mb-3">
+            <div class="col-6" id="line-chart-1"></div>
+            <div class="col-6" id="line-chart-2"></div>
+        </div>
+    </div>
+    <div class="row border-bottom mt-3">
+        <div class="row ml-5">
+            <h3 class="">Sunshine hours in summer and winter</h3>
+        </div>
+        <div class="row ml-3 mb-3">
+            <div class="col-6" id="line-chart-3"></div>
+            <div class="col-6" id="line-chart-4"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+    var data = d3.csv("data/sunshine.csv", function (data) {
+
+        // data: Array of Objects (attributes: city, lon, lat, month, monthnum, sunshine)
+
+        /* ----- bar chart (sunshine - month) of Seattle ----- */
+
+        var seattle_month_sunshine_data = data.filter(row => row["city"] === "Seattle");
+
+        var seattle_month_sunshine_vis = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+            "$description": "Monthly sunshine hours in Seattle",
+            "width": 500,
+            "height": 400,
+            "padding": 5,
+
+            "data": [
+                {
+                    "name": "seattle_month_sunshine_data",
+                    "values": seattle_month_sunshine_data,
+                }
+            ],
+
+            "title": {
+                "text": "Monthly sunshine hours in Seattle",
+                "frame": "group",
+                "align": "center",
+            },
+
+            "signals": [
+                {
+                    "name": "tooltip",
+                    "value": {},
+                    "on": [
+                        {"events": "rect:mouseover", "update": "datum"},
+                        {"events": "rect:mouseout",  "update": "{}"}
+                    ]
+                }
+            ],
+
+            "scales": [
+                {
+                    "name": "xscale",
+                    "type": "band",
+                    "domain": {"data": "seattle_month_sunshine_data", "field": "month"},
+                    "range": "width",
+                    "padding": 0.05,
+                    "round": true
+                },
+                {
+                    "name": "yscale",
+                    "domain": {"data": "seattle_month_sunshine_data", "field": "sunshine"},
+                    "nice": true,
+                    "range": "height"
+                }
+            ],
+
+            "axes": [
+                {
+                    "orient": "bottom",
+                    "scale": "xscale",
+                    "title": "Month"
+                },
+                {
+                    "orient": "left",
+                    "scale": "yscale",
+                    "title": "Sunshine hours",
+                }
+            ],
+
+            "marks": [
+                {
+                    "type": "rect",
+                    "from": {"data":"seattle_month_sunshine_data"},
+                    "encode": {
+                        "enter": {
+                            "x": {"scale": "xscale", "field": "month"},
+                            "width": {"scale": "xscale", "band": 1},
+                            "y": {"scale": "yscale", "field": "sunshine"},
+                            "y2": {"scale": "yscale", "value": 0}
+                        },
+                        "update": {
+                            "fill": {"value": "steelblue"}
+                        },
+                        "hover": {
+                            "fill": {"value": "red"}
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "encode": {
+                        "enter": {
+                            "align": {"value": "center"},
+                            "baseline": {"value": "bottom"},
+                            "fill": {"value": "#333"}
+                        },
+                        "update": {
+                            "x": {"scale": "xscale", "signal": "tooltip.month", "band": 0.5},
+                            "y": {"scale": "yscale", "signal": "tooltip.sunshine", "offset": -2},
+                            "text": {"signal": "tooltip.sunshine"},
+                            "fillOpacity": [
+                                {"test": "isNaN(tooltip.sunshine)", "value": 0},
+                                {"value": 1}
+                            ]
+                        }
+                    }
+                }
+            ]
+        };
+
+        /* ----- bar chart (sunshine - month) of Chicago ----- */
+
+        var chicago_month_sunshine_data = data.filter(row => row["city"] === "Chicago");
+
+        var chicago_month_sunshine_vis = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+            "$description": "Monthly sunshine hours in Seattle",
+            "width": 500,
+            "height": 400,
+            "padding": 5,
+
+            "data": [
+                {
+                    "name": "chicago_month_sunshine_data",
+                    "values": chicago_month_sunshine_data,
+                }
+            ],
+
+            "title": {
+                "text": "Monthly sunshine hours in Chicago",
+                "frame": "group",
+                "align": "center",
+            },
+
+            "signals": [
+                {
+                    "name": "tooltip",
+                    "value": {},
+                    "on": [
+                        {"events": "rect:mouseover", "update": "datum"},
+                        {"events": "rect:mouseout",  "update": "{}"}
+                    ]
+                }
+            ],
+
+            "scales": [
+                {
+                    "name": "xscale",
+                    "type": "band",
+                    "domain": {"data": "chicago_month_sunshine_data", "field": "month"},
+                    "range": "width",
+                    "padding": 0.05,
+                    "round": true
+                },
+                {
+                    "name": "yscale",
+                    "domain": {"data": "chicago_month_sunshine_data", "field": "sunshine"},
+                    "nice": true,
+                    "range": "height"
+                }
+            ],
+
+            "axes": [
+                {
+                    "orient": "bottom",
+                    "scale": "xscale",
+                    "title": "Month"
+                },
+                {
+                    "orient": "left",
+                    "scale": "yscale",
+                    "title": "Sunshine hours",
+                }
+            ],
+
+            "marks": [
+                {
+                    "type": "rect",
+                    "from": {"data":"chicago_month_sunshine_data"},
+                    "encode": {
+                        "enter": {
+                            "x": {"scale": "xscale", "field": "month"},
+                            "width": {"scale": "xscale", "band": 1},
+                            "y": {"scale": "yscale", "field": "sunshine"},
+                            "y2": {"scale": "yscale", "value": 0}
+                        },
+                        "update": {
+                            "fill": {"value": "steelblue"}
+                        },
+                        "hover": {
+                            "fill": {"value": "red"}
+                        }
+                    }
+                },
+                {
+                    "type": "text",
+                    "encode": {
+                        "enter": {
+                            "align": {"value": "center"},
+                            "baseline": {"value": "bottom"},
+                            "fill": {"value": "#333"}
+                        },
+                        "update": {
+                            "x": {"scale": "xscale", "signal": "tooltip.month", "band": 0.5},
+                            "y": {"scale": "yscale", "signal": "tooltip.sunshine", "offset": -2},
+                            "text": {"signal": "tooltip.sunshine"},
+                            "fillOpacity": [
+                                {"test": "isNaN(tooltip.sunshine)", "value": 0},
+                                {"value": 1}
+                            ]
+                        }
+                    }
+                }
+            ]
+        };
+
+        /* ----- line chart (mean sunshine - lon) ----- */
+
+        var lon_lat_sunshine_data = d3.nest().key(d => d["city"]).rollup(function(v){
+            return {
+                mean_sunshine : d3.mean(v, d => d["sunshine"]),
+                lon: d3.max(v, d => d["lon"]),
+                lat: d3.max(v, d => d["lat"])
+            }
+        }).entries(data);
+
+        for(var i = 0; i < lon_lat_sunshine_data.length; i++){
+            lon_lat_sunshine_data[i]['lon'] = lon_lat_sunshine_data[i]['value']['lon'];
+            lon_lat_sunshine_data[i]['lat'] = lon_lat_sunshine_data[i]['value']['lat'];
+            lon_lat_sunshine_data[i]['mean_sunshine'] = lon_lat_sunshine_data[i]['value']['mean_sunshine'];
+            delete lon_lat_sunshine_data[i]['value']
+        }
+
+        lon_lat_sunshine_data.sort((a, b) => (a['lon'] - b['lon']));
+
+        var lon_sunshine_vis = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+
+            "width": 500,
+            "height": 400,
+            "padding": 5,
+
+            "signals": [
+                {
+                    "name": "interpolate",
+                    "value": "linear",
+                    "bind": {
+                        "input": "select",
+                        "options": [
+                            "basis",
+                            "cardinal",
+                            "catmull-rom",
+                            "linear",
+                            "monotone",
+                            "natural",
+                            "step",
+                            "step-after",
+                            "step-before"
+                        ]
+                    }
+                }
+            ],
+
+            "data": [
+                {
+                    "name": "table",
+                    "values": lon_lat_sunshine_data,
+                    "transform": [{
+                            "type": "collect",
+                            "sort": {"field": "lon"}
+                        }]
+                }
+            ],
+
+            "scales": [
+                {
+                    "name": "x",
+                    "type": "point",
+                    "range": "width",
+                    "domain": {"data": "table", "field": "lon"}
+                },
+                {
+                    "name": "y",
+                    "type": "linear",
+                    "range": "height",
+                    "nice": true,
+                    "zero": true,
+                    "domain": {
+                        "data": "table",
+                        "field": "mean_sunshine",
+                    }
+                },
+            ],
+
+            "axes": [
+                {
+                    "orient": "bottom",
+                    "scale": "x",
+                    "title": "Lon",
+                },
+                {
+                    "orient": "left",
+                    "scale": "y",
+                    "title": "Average sunshine hours"
+                }
+            ],
+
+            "marks": [
+                {
+                    "type": "line",
+                    "from": {"data": "table"},
+
+                    "encode": {
+                        "enter": {
+                            "x": {"scale": "x", "field": "lon"},
+                            "y": {"scale": "y", "field": "mean_sunshine"},
+                            "strokeWidth": {"value": 2}
+                        },
+                        "update": {
+                            "interpolate": {"signal": "interpolate"},
+                            "strokeOpacity": {"value": 1}
+                        },
+                        "hover": {
+                            "strokeOpacity": {"value": 0.5}
+                        }
+                    }
+
+                },
+                {
+                    "type": "text",
+                    "from": {"data": "table"},
+                    "encode": {
+                        "update": {
+                            "x": {"scale": "x", "field": "lon", "offset": 4},
+                            "y": {"scale": "y", "field": "mean_sunshine", "offset": 4},
+                            "text": {"field": "key"}
+                        }
+                    }
+                }
+            ]
+        };
+
+
+        /* ----- line chart (mean sunshine - lat) ----- */
+
+        lon_lat_sunshine_data.sort((a, b) => (a['lat'] - b['lat']));
+
+        var lat_sunshine_vis = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+
+            "width": 500,
+            "height": 400,
+            "padding": 5,
+
+            "signals": [
+                {
+                    "name": "interpolate",
+                    "value": "linear",
+                    "bind": {
+                        "input": "select",
+                        "options": [
+                            "basis",
+                            "cardinal",
+                            "catmull-rom",
+                            "linear",
+                            "monotone",
+                            "natural",
+                            "step",
+                            "step-after",
+                            "step-before"
+                        ]
+                    }
+                }
+            ],
+
+            "data": [
+                {
+                    "name": "table",
+                    "values": lon_lat_sunshine_data,
+                    "transform": [{
+                        "type": "collect",
+                        "sort": {"field": "lat"}
+                    }]
+                }
+            ],
+
+            "scales": [
+                {
+                    "name": "x",
+                    "type": "point",
+                    "range": "width",
+                    "domain": {"data": "table", "field": "lat"}
+                },
+                {
+                    "name": "y",
+                    "type": "linear",
+                    "range": "height",
+                    "nice": true,
+                    "zero": true,
+                    "domain": {
+                        "data": "table",
+                        "field": "mean_sunshine",
+                    }
+                },
+            ],
+
+            "axes": [
+                {
+                    "orient": "bottom",
+                    "scale": "x",
+                    "title": "Lat",
+                },
+                {
+                    "orient": "left",
+                    "scale": "y",
+                    "title": "Average sunshine hours"
+                }
+            ],
+
+            "marks": [
+                {
+                    "type": "line",
+                    "from": {"data": "table"},
+                    "encode": {
+                        "enter": {
+                            "x": {"scale": "x", "field": "lat"},
+                            "y": {"scale": "y", "field": "mean_sunshine"},
+                            "strokeWidth": {"value": 2}
+                        },
+                        "update": {
+                            "interpolate": {"signal": "interpolate"},
+                            "strokeOpacity": {"value": 1}
+                        },
+                        "hover": {
+                            "strokeOpacity": {"value": 0.5}
+                        }
+                    }
+
+                },
+                {
+                    "type": "text",
+                    "from": {"data": "table"},
+                    "encode": {
+                        "update": {
+                            "x": {"scale": "x", "field": "lat", "offset": 4},
+                            "y": {"scale": "y", "field": "mean_sunshine", "offset": 4},
+                            "text": {"field": "key"}
+                        }
+                    }
+                }
+            ]
+        };
+
+        /* ----- line chart for winter and summer visualization ----- */
+
+        var winter_data = data.filter(d => ['0', '11', '10'].includes(d['monthnum']));
+
+        var winter_lat_vis = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+
+            "width": 500,
+            "height": 400,
+            "padding": 5,
+
+            "signals": [
+                {
+                    "name": "interpolate",
+                    "value": "linear",
+                    "bind": {
+                        "input": "select",
+                        "options": [
+                            "basis",
+                            "cardinal",
+                            "catmull-rom",
+                            "linear",
+                            "monotone",
+                            "natural",
+                            "step",
+                            "step-after",
+                            "step-before"
+                        ]
+                    }
+                }
+            ],
+
+            "data": [
+                {
+                    "name": "table",
+                    "values": winter_data,
+                    "transform": [{
+                        "type": "collect",
+                        "sort": {"field": "lat"}
+                    }]
+                }
+            ],
+
+            "title": {
+                "text": "Sunshine hours in winter",
+                "frame": "group",
+                "align": "center",
+            },
+
+            "scales": [
+                {
+                    "name": "x",
+                    "type": "point",
+                    "range": "width",
+                    "domain": {"data": "table", "field": "lat"}
+                },
+                {
+                    "name": "y",
+                    "type": "linear",
+                    "range": "height",
+                    "nice": true,
+                    "zero": true,
+                    "domain": {
+                        "data": "table",
+                        "field": "sunshine",
+                    }
+                },
+                {
+                    "name": "color",
+                    "type": "ordinal",
+                    "range": "category",
+                    "domain": {"data": "table", "field": "monthnum"}
+                }
+            ],
+
+            "axes": [
+                {
+                    "orient": "bottom",
+                    "scale": "x",
+                    "title": "Lat",
+                },
+                {
+                    "orient": "left",
+                    "scale": "y",
+                    "title": "Average sunshine hours"
+                }
+            ],
+
+            "marks": [
+                {
+                    "type": "group",
+                    "from": {
+                        "facet": {
+                            "name": "series",
+                            "data": "table",
+                            "groupby": "monthnum"
+                        }
+                    },
+                    "marks": [
+                        {
+                            "type": "line",
+                            "from": {"data": "series"},
+                            "encode": {
+                                "enter": {
+                                    "x": {"scale": "x", "field": "lat"},
+                                    "y": {"scale": "y", "field": "sunshine"},
+                                    "stroke": {"scale": "color", "field": "monthnum"},
+                                    "strokeWidth": {"value": 2}
+                                },
+                                "update": {
+                                    "interpolate": {"signal": "interpolate"},
+                                    "strokeOpacity": {"value": 1}
+                                },
+                                "hover": {
+                                    "strokeOpacity": {"value": 0.5}
+                                }
+                            }
+                        }
+                    ]
+
+                },
+                {
+                    "type": "text",
+                    "from": {"data": "table"},
+                    "encode": {
+                        "update": {
+                            "x": {"scale": "x", "field": "lat", "offset": 4},
+                            "y": {"scale": "y", "field": "sunshine", "offset": 4},
+                            "text": {"field": "city"}
+                        }
+                    }
+                }
+            ]
+        };
+
+        var summer_data = data.filter(d => ['5', '6', '7'].includes(d['monthnum']));
+
+        var summer_lat_vis = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+
+            "width": 500,
+            "height": 400,
+            "padding": 5,
+
+            "signals": [
+                {
+                    "name": "interpolate",
+                    "value": "linear",
+                    "bind": {
+                        "input": "select",
+                        "options": [
+                            "basis",
+                            "cardinal",
+                            "catmull-rom",
+                            "linear",
+                            "monotone",
+                            "natural",
+                            "step",
+                            "step-after",
+                            "step-before"
+                        ]
+                    }
+                }
+            ],
+
+            "data": [
+                {
+                    "name": "table",
+                    "values": summer_data,
+                    "transform": [{
+                        "type": "collect",
+                        "sort": {"field": "lat"}
+                    }]
+                }
+            ],
+
+            "title": {
+                "text": "Sunshine hours in summer",
+                "frame": "group",
+                "align": "center",
+            },
+
+            "scales": [
+                {
+                    "name": "x",
+                    "type": "point",
+                    "range": "width",
+                    "domain": {"data": "table", "field": "lat"}
+                },
+                {
+                    "name": "y",
+                    "type": "linear",
+                    "range": "height",
+                    "nice": true,
+                    "zero": true,
+                    "domain": {
+                        "data": "table",
+                        "field": "sunshine",
+                    }
+                },
+                {
+                    "name": "color",
+                    "type": "ordinal",
+                    "range": "category",
+                    "domain": {"data": "table", "field": "monthnum"}
+                }
+            ],
+
+            "axes": [
+                {
+                    "orient": "bottom",
+                    "scale": "x",
+                    "title": "Lat",
+                },
+                {
+                    "orient": "left",
+                    "scale": "y",
+                    "title": "Average sunshine hours"
+                }
+            ],
+
+            "marks": [
+                {
+                    "type": "group",
+                    "from": {
+                        "facet": {
+                            "name": "series",
+                            "data": "table",
+                            "groupby": "monthnum"
+                        }
+                    },
+                    "marks": [
+                        {
+                            "type": "line",
+                            "from": {"data": "series"},
+                            "encode": {
+                                "enter": {
+                                    "x": {"scale": "x", "field": "lat"},
+                                    "y": {"scale": "y", "field": "sunshine"},
+                                    "stroke": {"scale": "color", "field": "monthnum"},
+                                    "strokeWidth": {"value": 2}
+                                },
+                                "update": {
+                                    "interpolate": {"signal": "interpolate"},
+                                    "strokeOpacity": {"value": 1}
+                                },
+                                "hover": {
+                                    "strokeOpacity": {"value": 0.5}
+                                }
+                            }
+                        }
+                    ]
+
+                },
+                {
+                    "type": "text",
+                    "from": {"data": "table"},
+                    "encode": {
+                        "update": {
+                            "x": {"scale": "x", "field": "lat", "offset": 4},
+                            "y": {"scale": "y", "field": "sunshine", "offset": 4},
+                            "text": {"field": "city"}
+                        }
+                    }
+                }
+            ]
+        };
+
+        vegaEmbed('#bar-chart-1', seattle_month_sunshine_vis);
+        vegaEmbed('#bar-chart-2', chicago_month_sunshine_vis);
+
+        vegaEmbed('#line-chart-1', lon_sunshine_vis);
+        vegaEmbed('#line-chart-2', lat_sunshine_vis);
+
+        vegaEmbed('#line-chart-3', winter_lat_vis);
+        vegaEmbed('#line-chart-4', summer_lat_vis);
+
+
+    });
+
+
+</script>
+
+</body>
+</html>
